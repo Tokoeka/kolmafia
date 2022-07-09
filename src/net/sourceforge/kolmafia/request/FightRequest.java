@@ -3175,7 +3175,7 @@ public class FightRequest extends GenericRequest {
   // FightRequest.lastResponseText instead.
   // Note that this is not run if the combat is finished by
   // rollover-runaway, saber, or similar mechanic.
-  private static void updateFinalRoundData(final String responseText, final boolean won) {
+  public static void updateFinalRoundData(final String responseText, final boolean won) {
     MonsterData monster = MonsterStatusTracker.getLastMonster();
     String monsterName = monster != null ? monster.getName() : "";
     SpecialMonster special = FightRequest.specialMonsterCategory(monsterName);
@@ -4244,7 +4244,10 @@ public class FightRequest extends GenericRequest {
       }
 
       if (KoLCharacter.hasEquipped(ItemPool.SNOW_SUIT, EquipmentManager.FAMILIAR)) {
-        Preferences.increment("_snowSuitCount", 1, 75, false);
+        if (Preferences.getInteger("_snowSuitCount") < 75
+            && Preferences.increment("_snowSuitCount") % 5 == 0) {
+          KoLCharacter.recalculateAdjustments();
+        }
       }
 
       if (KoLCharacter.hasEquipped(ItemPool.get(ItemPool.XIBLAXIAN_HOLOWRIST_PUTER, 1))) {
@@ -5683,6 +5686,14 @@ public class FightRequest extends GenericRequest {
       this.location = KoLAdventure.lastLocationName == null ? "" : KoLAdventure.lastLocationName;
     }
 
+    public void nextRound() {
+      // If we are parsing multiple rounds because the action was a macro, we may need to update
+      // some things that happened in the last round.
+
+      // If goose drones are now active
+      this.drones = Preferences.getInteger("gooseDronesRemaining");
+    }
+
     public void setFamiliar(final String image) {
       FamiliarData current = KoLCharacter.getFamiliar();
       int id = FamiliarDatabase.getFamiliarByImageLocation(image);
@@ -6350,6 +6361,7 @@ public class FightRequest extends GenericRequest {
 
     if (name.equals("hr")) {
       FightRequest.updateRoundData(status.macroMatcher);
+      status.nextRound();
       if (status.macroMatcher.find()) {
         FightRequest.registerMacroAction(status.macroMatcher);
         ++FightRequest.currentRound;
